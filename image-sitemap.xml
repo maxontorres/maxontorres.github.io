@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>https://maxontorres.github.io/photos/maxon-torres-black-polo-portrait/</loc>
+    <image:image>
+      <image:loc>https://maxontorres.github.io/images/maxon-torres-black-polo-portrait.png</image:loc>
+      <image:caption>Maxon Torres outdoors in Laos.</image:caption>
+      <image:title>Outdoors in Laos</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://maxontorres.github.io/photos/maxon-torres-diving-mexico/</loc>
+    <image:image>
+      <image:loc>https://maxontorres.github.io/images/maxon-torres-diving-mexico.png</image:loc>
+      <image:caption>Maxon Torres scuba diving in Mexico.</image:caption>
+      <image:title>The Yucatan Descent</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://maxontorres.github.io/photos/maxon-torres-motorcycle-rider/</loc>
+    <image:image>
+      <image:loc>https://maxontorres.github.io/images/maxon-torres-motorcycle-rider.png</image:loc>
+      <image:caption>Maxon Torres wearing a motorcycle helmet at golden hour.</image:caption>
+      <image:title>The Vientiane Hour</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://maxontorres.github.io/photos/maxon-torres-river-border-laos-thailand/</loc>
+    <image:image>
+      <image:loc>https://maxontorres.github.io/images/maxon_torres_at_the_river_border_laos_thailand.png</image:loc>
+      <image:caption>Maxon Torres on a motorcycle by the Laos-Thailand river border at night.</image:caption>
+      <image:title>The River Border</image:title>
+    </image:image>
+  </url>
+</urlset>
