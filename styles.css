@@ -307,6 +307,10 @@ p {
   padding-top: 22px;
 }
 
+.hero-update {
+  grid-template-columns: 1fr;
+}
+
 .hero-meta strong {
   display: block;
   margin-top: 4px;
