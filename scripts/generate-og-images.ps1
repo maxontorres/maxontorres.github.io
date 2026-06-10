@@ -212,6 +212,28 @@ function Get-WrappedLines {
   return $lines.ToArray()
 }
 
+function Draw-TrackedText {
+  param(
+    [System.Drawing.Graphics]$Graphics,
+    [string]$Text,
+    [System.Drawing.Font]$Font,
+    [System.Drawing.Brush]$Brush,
+    [int]$X,
+    [int]$Y,
+    [double]$TrackingEm
+  )
+
+  # Draws text character-by-character with extra horizontal advance, since
+  # System.Drawing has no native letter-spacing/tracking support.
+  $tracking = $Font.Size * $TrackingEm
+  $cursorX = [double]$X
+  foreach ($ch in $Text.ToCharArray()) {
+    $glyph = [string]$ch
+    $Graphics.DrawString($glyph, $Font, $Brush, [single]$cursorX, $Y)
+    $cursorX += $Graphics.MeasureString($glyph, $Font).Width + $tracking
+  }
+}
+
 function Draw-WrappedText {
   param(
     [System.Drawing.Graphics]$Graphics,
@@ -252,7 +274,7 @@ function New-OgImage {
     $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
     $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
     $graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
-    $graphics.Clear([System.Drawing.Color]::FromArgb(20, 22, 22))
+    $graphics.Clear([System.Drawing.Color]::FromArgb(7, 7, 7))
 
     if ($SourceImage) {
       # Cover-crop the source image so it fills the 1200x630 canvas without
@@ -266,47 +288,51 @@ function New-OgImage {
       $graphics.DrawImage($source, $drawX, $drawY, $drawWidth, $drawHeight)
     }
 
-    # Darken the image so the overlaid title and description remain readable
-    # regardless of the source photo.
-    $overlayRect = New-Object System.Drawing.Rectangle 0, 0, $Width, $Height
+    # Darken the whole image for consistent depth, then layer a stronger
+    # left-side panel so the title stays legible regardless of what the
+    # source photo looks like behind it.
+    $fullOverlay = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(110, 7, 7, 7))
+    $graphics.FillRectangle($fullOverlay, 0, 0, $Width, $Height)
+    $fullOverlay.Dispose()
+
+    $textPanelRect = New-Object System.Drawing.Rectangle 0, 0, ([int]($Width * 0.65)), $Height
     $gradient = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
-      $overlayRect,
-      [System.Drawing.Color]::FromArgb(235, 13, 15, 15),
-      [System.Drawing.Color]::FromArgb(30, 13, 15, 15),
+      $textPanelRect,
+      [System.Drawing.Color]::FromArgb(225, 7, 7, 7),
+      [System.Drawing.Color]::FromArgb(0, 7, 7, 7),
       0
     )
-    $graphics.FillRectangle($gradient, $overlayRect)
+    $graphics.FillRectangle($gradient, $textPanelRect)
     $gradient.Dispose()
 
     # Extra footer contrast for the display URL.
-    $bottomBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(115, 13, 15, 15))
+    $bottomBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(140, 7, 7, 7))
     $graphics.FillRectangle($bottomBrush, 0, ($Height - 122), $Width, 122)
     $bottomBrush.Dispose()
 
-    $white = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(248, 246, 239))
-    $muted = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(205, 199, 187))
-    $accent = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(230, 185, 98))
+    $paper = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(243, 235, 221))
+    $mutedPaper = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(199, 243, 235, 221))
+    $accent = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(225, 50, 27))
 
-    $brandFont = New-Object System.Drawing.Font "Segoe UI", 26, ([System.Drawing.FontStyle]::Regular), ([System.Drawing.GraphicsUnit]::Pixel)
-    $titleFont = New-Object System.Drawing.Font "Segoe UI", 78, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
-    $descFont = New-Object System.Drawing.Font "Segoe UI", 31, ([System.Drawing.FontStyle]::Regular), ([System.Drawing.GraphicsUnit]::Pixel)
+    $brandFont = New-Object System.Drawing.Font "Segoe UI", 22, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
+    $titleFont = New-Object System.Drawing.Font "Impact", 72, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
     $urlFont = New-Object System.Drawing.Font "Segoe UI", 24, ([System.Drawing.FontStyle]::Regular), ([System.Drawing.GraphicsUnit]::Pixel)
 
-    $graphics.FillRectangle($accent, 78, 82, 78, 5)
-    $graphics.DrawString("Maxon Torres", $brandFont, $muted, 78, 108)
+    $graphics.FillRectangle($accent, 78, 86, 78, 6)
+    Draw-TrackedText -Graphics $graphics -Text "MAXON TORRES" -Font $brandFont -Brush $accent -X 78 -Y 110 -TrackingEm 0.16
 
-    # Render the title as the main text on the generated OG image.
-    Draw-WrappedText -Graphics $graphics -Text $Title -Font $titleFont -Brush $white -X 74 -Y 208 -MaxWidth 780 -LineHeight 88 -MaxLines 3 | Out-Null
+    # Render the title as the main text on the generated OG image, in
+    # uppercase to match the site's display heading style.
+    Draw-WrappedText -Graphics $graphics -Text $Title.ToUpperInvariant() -Font $titleFont -Brush $paper -X 74 -Y 208 -MaxWidth 800 -LineHeight 76 -MaxLines 3 | Out-Null
 
     $displayUrl = $Canonical -replace "^https?://", ""
-    $graphics.DrawString($displayUrl, $urlFont, $muted, 78, ($Height - 72))
+    $graphics.DrawString($displayUrl, $urlFont, $mutedPaper, 78, ($Height - 72))
 
     $brandFont.Dispose()
     $titleFont.Dispose()
-    $descFont.Dispose()
     $urlFont.Dispose()
-    $white.Dispose()
-    $muted.Dispose()
+    $paper.Dispose()
+    $mutedPaper.Dispose()
     $accent.Dispose()
 
     # Save as a quality-compressed JPEG. Social platforms re-encode previews
