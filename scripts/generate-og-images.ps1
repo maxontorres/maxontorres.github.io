@@ -6,10 +6,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Resolve paths from the script location so it can be run from any working
+# directory and still write images into the site repo.
 $Root = Split-Path -Parent $PSScriptRoot
 $OutDir = Join-Path $Root "images\og"
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
+# System.Drawing is built in on Windows PowerShell. Some newer PowerShell
+# installs expose it through System.Drawing.Common instead.
 try {
   Add-Type -AssemblyName System.Drawing
 } catch {
@@ -23,6 +27,8 @@ function Get-MetaContent {
     [string]$Name
   )
 
+  # Reads a single meta tag where the identifying attribute appears before the
+  # content attribute, which matches the format used in this static site.
   $pattern = "<meta\s+[^>]*$Attribute=`"$([regex]::Escape($Name))`"[^>]*content=`"([^`"]+)`"[^>]*>"
   $match = [regex]::Match($Html, $pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
   if ($match.Success) {
@@ -38,6 +44,7 @@ function Get-LinkHref {
     [string]$Rel
   )
 
+  # Pulls canonical URLs and other link hrefs from the document head.
   $pattern = "<link\s+[^>]*rel=`"$([regex]::Escape($Rel))`"[^>]*href=`"([^`"]+)`"[^>]*>"
   $match = [regex]::Match($Html, $pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
   if ($match.Success) {
@@ -61,6 +68,9 @@ function Get-Title {
 function Get-StructuredImage {
   param([string]$Html)
 
+  # Prefer JSON-LD images/contentUrl values when an existing og:image already
+  # points at a generated OG image. This avoids using an old generated card as
+  # the source image for the next generated card.
   $matches = [regex]::Matches($Html, '"(?:image|contentUrl)"\s*:\s*"([^"]+)"')
   foreach ($match in $matches) {
     $url = [System.Net.WebUtility]::HtmlDecode($match.Groups[1].Value)
@@ -86,6 +96,8 @@ function Get-FirstPageImage {
 function ConvertTo-OgFilename {
   param([string]$Canonical)
 
+  # Turn the canonical URL path into a stable filename, using "home" for the
+  # root page.
   $path = $Canonical -replace "^https?://[^/]+", ""
   $path = $path.Trim("/")
   if ([string]::IsNullOrWhiteSpace($path)) {
@@ -107,6 +119,8 @@ function Resolve-LocalImage {
     return $null
   }
 
+  # Accept site-absolute URLs, root-relative paths, and page-relative paths.
+  # Remote images are skipped because System.Drawing reads local files here.
   $localPath = $ImageUrl
   if ($localPath.StartsWith($BaseUrl)) {
     $localPath = $localPath.Substring($BaseUrl.Length)
@@ -154,6 +168,8 @@ function Get-WrappedLines {
   $line = ""
   $truncated = $false
 
+  # Build lines word by word, measuring each candidate with the actual drawing
+  # font so the final rendered text stays inside the card.
   foreach ($word in $words) {
     $candidate = if ($line) { "$line $word" } else { $word }
     if ($Graphics.MeasureString($candidate, $Font).Width -le $MaxWidth) {
@@ -178,6 +194,7 @@ function Get-WrappedLines {
     $lines.Add($line)
   }
 
+  # Add an ellipsis when the available line count is exhausted.
   if ($truncated -and $lines.Count -eq $MaxLines -and $words.Count -gt 0) {
     $last = $lines[$lines.Count - 1]
     if ($Graphics.MeasureString("$last ...", $Font).Width -le $MaxWidth) {
@@ -223,12 +240,16 @@ function New-OgImage {
   $source = $null
 
   try {
+    # Draw at high quality because these images are shared as large social
+    # preview cards.
     $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
     $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
     $graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
     $graphics.Clear([System.Drawing.Color]::FromArgb(20, 22, 22))
 
     if ($SourceImage) {
+      # Cover-crop the source image so it fills the 1200x630 canvas without
+      # distortion, then center it.
       $source = [System.Drawing.Image]::FromFile($SourceImage)
       $scale = [Math]::Max($Width / $source.Width, $Height / $source.Height)
       $drawWidth = [int][Math]::Ceiling($source.Width * $scale)
@@ -238,6 +259,8 @@ function New-OgImage {
       $graphics.DrawImage($source, $drawX, $drawY, $drawWidth, $drawHeight)
     }
 
+    # Darken the image so the overlaid title and description remain readable
+    # regardless of the source photo.
     $overlayRect = New-Object System.Drawing.Rectangle 0, 0, $Width, $Height
     $gradient = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
       $overlayRect,
@@ -248,6 +271,7 @@ function New-OgImage {
     $graphics.FillRectangle($gradient, $overlayRect)
     $gradient.Dispose()
 
+    # Extra footer contrast for the display URL.
     $bottomBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(115, 13, 15, 15))
     $graphics.FillRectangle($bottomBrush, 0, ($Height - 122), $Width, 122)
     $bottomBrush.Dispose()
@@ -264,9 +288,8 @@ function New-OgImage {
     $graphics.FillRectangle($accent, 78, 82, 78, 5)
     $graphics.DrawString("Maxon Torres", $brandFont, $muted, 78, 108)
 
-    $nextY = Draw-WrappedText -Graphics $graphics -Text $Title -Font $titleFont -Brush $white -X 74 -Y 208 -MaxWidth 780 -LineHeight 88 -MaxLines 3
-    $nextY += 24
-    Draw-WrappedText -Graphics $graphics -Text $Description -Font $descFont -Brush $muted -X 78 -Y $nextY -MaxWidth 720 -LineHeight 42 -MaxLines 2 | Out-Null
+    # Render the title as the main text on the generated OG image.
+    Draw-WrappedText -Graphics $graphics -Text $Title -Font $titleFont -Brush $white -X 74 -Y 208 -MaxWidth 780 -LineHeight 88 -MaxLines 3 | Out-Null
 
     $displayUrl = $Canonical -replace "^https?://", ""
     $graphics.DrawString($displayUrl, $urlFont, $muted, 78, ($Height - 72))
@@ -295,6 +318,8 @@ function Set-MetaContent {
     [string]$Value
   )
 
+  # Only updates existing meta tags. Missing tags are handled by Upsert-AfterMeta
+  # so the new tags can be placed next to related metadata.
   $escapedName = [regex]::Escape($Name)
   $pattern = "(<meta\s+[^>]*$Attribute=`"$escapedName`"[^>]*content=`")([^`"]+)(`"[^>]*>)"
   if ([regex]::IsMatch($Html, $pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)) {
@@ -312,6 +337,8 @@ function Upsert-AfterMeta {
     [string]$Tag
   )
 
+  # If the target tag already exists, replace it in place. Otherwise insert it
+  # after a nearby anchor meta tag to keep the head organized.
   $attr = if ($Tag -match 'property="([^"]+)"') { "property" } else { "name" }
   $name = if ($Tag -match '(?:property|name)="([^"]+)"') { $matches[1] } else { $null }
   if ($name) {
@@ -328,6 +355,8 @@ function Upsert-AfterMeta {
 $pages = Get-ChildItem -Path $Root -Recurse -Filter "index.html" |
   Where-Object { $_.FullName -notmatch "\\\.git\\" }
 
+# Generate one OG image per page and keep each page's social meta tags in sync
+# with the generated image path.
 foreach ($page in $pages) {
   $html = Get-Content -LiteralPath $page.FullName -Raw
   $canonical = Get-LinkHref -Html $html -Rel "canonical"
@@ -342,6 +371,8 @@ foreach ($page in $pages) {
   if (-not $description) { $description = Get-MetaContent -Html $html -Attribute "name" -Name "description" }
   if (-not $description) { $description = "Personal photos, notes, and articles by Maxon Torres." }
 
+  # Choose the best available source image for the page. Generated OG images are
+  # ignored as inputs so repeated runs do not compound text overlays.
   $sourceUrl = Get-MetaContent -Html $html -Attribute "property" -Name "og:image"
   if ($sourceUrl -match "/images/og/") {
     $sourceUrl = Get-StructuredImage -Html $html
@@ -357,11 +388,14 @@ foreach ($page in $pages) {
     $sourceImage = Join-Path $Root "images\maxon-torres-black-polo-portrait.png"
   }
 
+  # The generated image filename follows the canonical URL, not the local folder
+  # name, so hosted URLs and local files remain predictable.
   $filename = ConvertTo-OgFilename -Canonical $canonical
   $outputPath = Join-Path $OutDir $filename
   $displayTitle = $title -replace "\s+\|\s+Maxon Torres$", ""
   New-OgImage -SourceImage $sourceImage -OutputImage $outputPath -Title $displayTitle -Description $description -Canonical $canonical
 
+  # Point Open Graph and Twitter cards at the freshly generated image.
   $ogUrl = "$BaseUrl/images/og/$filename"
   $html = Set-MetaContent -Html $html -Attribute "property" -Name "og:image" -Value $ogUrl
   $html = Upsert-AfterMeta -Html $html -AnchorAttribute "property" -AnchorName "og:image" -Tag '<meta property="og:image:width" content="1200" />'
