@@ -106,7 +106,7 @@ function ConvertTo-OgFilename {
 
   $slug = $path -replace "[^A-Za-z0-9]+", "-"
   $slug = $slug.Trim("-").ToLowerInvariant()
-  return "$slug.png"
+  return "$slug.jpg"
 }
 
 function Resolve-LocalImage {
@@ -120,14 +120,21 @@ function Resolve-LocalImage {
   }
 
   # Accept site-absolute URLs, root-relative paths, and page-relative paths.
-  # Remote images are skipped because System.Drawing reads local files here.
+  # Fully remote images (e.g. ImageKit) are downloaded to a temp file because
+  # System.Drawing only reads local files.
   $localPath = $ImageUrl
   if ($localPath.StartsWith($BaseUrl)) {
     $localPath = $localPath.Substring($BaseUrl.Length)
   }
 
   if ($localPath -match "^https?://") {
-    return $null
+    $tempFile = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName() + ".img")
+    try {
+      Invoke-WebRequest -Uri $localPath -OutFile $tempFile -UseBasicParsing
+      return $tempFile
+    } catch {
+      return $null
+    }
   }
 
   if ($localPath.StartsWith("/")) {
@@ -302,7 +309,13 @@ function New-OgImage {
     $muted.Dispose()
     $accent.Dispose()
 
-    $bitmap.Save($OutputImage, [System.Drawing.Imaging.ImageFormat]::Png)
+    # Save as a quality-compressed JPEG. Social platforms re-encode previews
+    # anyway, so a lossless PNG just wastes bandwidth (1MB+ vs ~100KB).
+    $jpegCodec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq "image/jpeg" }
+    $encoderParams = New-Object System.Drawing.Imaging.EncoderParameters(1)
+    $encoderParams.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter([System.Drawing.Imaging.Encoder]::Quality, [int64]75)
+    $bitmap.Save($OutputImage, $jpegCodec, $encoderParams)
+    $encoderParams.Dispose()
   } finally {
     if ($source) { $source.Dispose() }
     $graphics.Dispose()
@@ -382,10 +395,10 @@ foreach ($page in $pages) {
   }
   $sourceImage = Resolve-LocalImage -ImageUrl $sourceUrl -PageDirectory $page.DirectoryName
   if (-not $sourceImage -and $canonical -match "/notes/?$") {
-    $sourceImage = Join-Path $Root "images\maxon-torres-motorcycle-rider.png"
+    $sourceImage = Resolve-LocalImage -ImageUrl "https://ik.imagekit.io/maxontorres/maxon-torres-motorcycle-rider.png?tr=w-1200,q-80" -PageDirectory $page.DirectoryName
   }
   if (-not $sourceImage) {
-    $sourceImage = Join-Path $Root "images\maxon-torres-black-polo-portrait.png"
+    $sourceImage = Resolve-LocalImage -ImageUrl "https://ik.imagekit.io/maxontorres/maxon-torres-black-polo-portrait.png?tr=w-1200,q-80" -PageDirectory $page.DirectoryName
   }
 
   # The generated image filename follows the canonical URL, not the local folder
@@ -394,6 +407,10 @@ foreach ($page in $pages) {
   $outputPath = Join-Path $OutDir $filename
   $displayTitle = $title -replace "\s+\|\s+Maxon Torres$", ""
   New-OgImage -SourceImage $sourceImage -OutputImage $outputPath -Title $displayTitle -Description $description -Canonical $canonical
+
+  if ($sourceImage -and $sourceImage.StartsWith([System.IO.Path]::GetTempPath())) {
+    Remove-Item -LiteralPath $sourceImage -Force -ErrorAction SilentlyContinue
+  }
 
   # Point Open Graph and Twitter cards at the freshly generated image.
   $ogUrl = "$BaseUrl/images/og/$filename"

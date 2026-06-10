@@ -646,7 +646,7 @@ figcaption {
   position: absolute;
   inset: 0;
   z-index: -3;
-  background: url("images/maxontorres_mugshot.jpg") center / cover no-repeat,
+  background: url("https://ik.imagekit.io/maxontorres/maxontorres_mugshot.jpg?tr=w-748,q-80") center / cover no-repeat,
     url("https://i.ytimg.com/vi/LMo0b5yr-lc/hqdefault.jpg") center / cover no-repeat;
   filter: contrast(1.18) saturate(0.82);
   transform: scale(1.04);
