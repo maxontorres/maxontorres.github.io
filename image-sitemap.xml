@@ -2,6 +2,14 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
+    <loc>https://maxontorres.github.io/journal/maxon-torres-riding-outside-vientiane/</loc>
+    <image:image>
+      <image:loc>https://ik.imagekit.io/maxontorres/riding_outside_vientiane_city.png?updatedAt=1781240508904&amp;tr=w-1200,q-80</image:loc>
+      <image:caption>Maxon Torres riding a motorcycle outside Vientiane, Laos.</image:caption>
+      <image:title>The Exit Is Always Open</image:title>
+    </image:image>
+  </url>
+  <url>
     <loc>https://maxontorres.github.io/journal/maxon-torres-black-polo-portrait/</loc>
     <image:image>
       <image:loc>https://ik.imagekit.io/maxontorres/maxon-torres-black-polo-portrait.png?tr=w-1200,q-80</image:loc>
