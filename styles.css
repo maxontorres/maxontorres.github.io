@@ -860,7 +860,6 @@ figcaption {
   }
 
   .photo-grid,
-  .archive-grid,
   .about-title-meta {
     grid-template-columns: 1fr;
   }

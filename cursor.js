@@ -39,7 +39,7 @@
     return Boolean(
       element &&
         element.closest(
-          'a, button, [role="button"], .photo-card, .note-row, .note-card, .text-link'
+          'a, button, [role="button"], .photo-card, .text-link'
         )
     );
   }
