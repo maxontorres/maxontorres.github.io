@@ -1,5 +1,6 @@
 (function () {
   var videos = [
+    "https://ik.imagekit.io/maxontorres/samsenthai_rd.mp4",
     "https://ik.imagekit.io/maxontorres/sanjiang-motovlog.mp4",
     "https://ik.imagekit.io/maxontorres/motovlog-feb-24.mp4",
   ];
