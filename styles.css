@@ -565,14 +565,14 @@ figcaption {
   pointer-events: none;
 }
 
-.about-video-background iframe {
+.about-video-background video {
   position: absolute;
   top: 50%;
   left: 50%;
   width: max(100vw, 177.78vh);
   height: max(56.25vw, 100vh);
-  border: 0;
   opacity: 0.72;
+  object-fit: cover;
   filter: contrast(1.18) saturate(0.72);
   transform: translate(-50%, -50%);
   pointer-events: none;
