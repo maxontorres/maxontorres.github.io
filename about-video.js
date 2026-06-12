@@ -1,7 +1,7 @@
 (function () {
   var videos = [
+    "https://ik.imagekit.io/maxontorres/sanjiang-motovlog.mp4",
     "https://ik.imagekit.io/maxontorres/motovlog-feb-24.mp4",
-    "https://ik.imagekit.io/maxontorres/sanjiang-motovlog.mp4?updatedAt=1781236506482"
   ];
 
   var video = document.querySelector(".about-video-background video");
